@@ -1,0 +1,28 @@
+package org.example.request;
+
+import java.net.Socket;
+
+public class RequestHandler {
+    private String rawString;
+    private Socket clientSocket;
+    private HttpRequest httpRequest;
+
+    public RequestHandler(String rawString, Socket clientSocket) {
+        this.rawString = rawString;
+        this.clientSocket = clientSocket;
+        this.httpRequest = new HttpRequest();
+    }
+
+    public HttpRequest passRequest(){
+        String[] headerBody=this.rawString.split("\r\n\n");
+        String Header = headerBody[0];
+        String body=headerBody[1];
+        
+    }
+
+    public HttpRequest getHttpResponse() {
+
+        return  this.httpRequest;
+    }
+}
+
