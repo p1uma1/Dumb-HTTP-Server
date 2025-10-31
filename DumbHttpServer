@@ -1,5 +1,8 @@
 package org.example.httpServer;
 
+import org.example.httpServer.utils.DumbHttpResponse;
+import org.example.request.RequestHandler;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -70,10 +73,15 @@ public class DumbHttpServer {
                new OutputStreamWriter( clientSocket.getOutputStream())
         );
         String inputLine;
-        while((inputLine=in.readLine())!=null){
-            System.out.println(inputLine);
+        String requestString = "";
+        while((inputLine=in.readLine())!=null && !inputLine.isEmpty()){
+            requestString+=inputLine+'\n';
             if(inputLine.isEmpty()) break;
         }
+        System.out.print(requestString);
+
+       // DumbHttpResponse = new RequestHandler(requestString,clientSocket).getHttpResponse();
+
         LocalDateTime now = LocalDateTime.now();
 
         out.write("HTTP/1.1 200 OK\r\nDate: " + now + "\r\nServer: Custom Server\r\nContent-Type: text/html\r\nContent-Length: " + length + "\r\n\r\n");
