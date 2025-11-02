@@ -1,6 +1,7 @@
 package org.example.DumbHttpServer;
 
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -29,40 +30,60 @@ public class RequestHandler {
 
         name=FirstName+LastName&email=bsmth%40example.com
     * */
-    public HttpRequest parseRequest(){
-        String[] request= this.rawString.split("\r?\n\r?\n");
-        String body ="";
-        if(request.length==2){
-            body= request[1];
-        }
-        //seperate first line from request upper body
-        String[] lines = request[0].split("\r?\n", 2);
 
-        if (lines.length == 0 || lines[0].trim().isEmpty()) {
-            throw new RuntimeException("BAD REQUEST") ;
-        }
-        String method = lines[0];  //method line
-        String headersString = lines[1];
-        String httpMethod="";
-        String httpVersion="";
-        String path="/";
 
-        String[] parts = method.split(" ");
-        if (parts.length < 1) {
+    public HttpRequest parseRequest() {
+        if (this.rawString == null || this.rawString.isEmpty()) {
             throw new RuntimeException("BAD REQUEST");
         }
 
-        else {
-            httpMethod=parts[0].trim().toUpperCase();
-            if (parts.length == 3) {
-                //ex : GET/POST
-                path = parts[1].trim();
-                httpVersion = parts[2].trim();
-            }
+        // 1) Separate head and body (limit = 2)
+        String[] headAndBody = this.rawString.split("\r?\n\r?\n", 2);
+        String head = headAndBody[0];
+        String body = (headAndBody.length == 2) ? headAndBody[1] : "";
+
+        // 2) Extract the start-line (first line) and the raw headers string
+        String[] headLines = head.split("\r?\n", 2);
+        if (headLines.length == 0 || headLines[0].trim().isEmpty()) {
+            throw new RuntimeException("BAD REQUEST");
         }
-        Map<String,String> headers = getHeaders(headersString);
-        return new HttpRequest(method,path,httpVersion,headers,body);
+        String startLine = headLines[0].trim();
+        String headersString = (headLines.length == 2) ? headLines[1] : "";
+
+        // 3) Parse the start-line
+        String[] parts = startLine.split("\\s+");  //seperate strings between multiple whitespace characters
+        if (parts.length < 3) {
+            throw new RuntimeException("BAD REQUEST");
+        }
+        String httpMethod = parts[0].trim().toUpperCase();
+        String requestTarget = parts[1].trim();
+        String httpVersion = parts[2].trim();
+        String path;
+
+        path = requestTarget.isEmpty() ? "/" : requestTarget;
+
+
+        Map<String, String> headers = getHeaders(headersString);
+
+        // (Optional) Basic Content-Length sanity check : do this in later version
+//        String cl = headers.get("Content-Length");
+//        if (cl != null) {
+//            try {
+//                int expected = Integer.parseInt(cl.trim());
+//                if (expected < 0) throw new NumberFormatException();
+//                // NOTE: body.length() is characters, not bytes; proper check needs raw bytes/encoding
+//                if (body.getBytes(StandardCharsets.UTF_8).length < expected) {
+//                    throw new RuntimeException("BAD REQUEST: Body shorter than Content-Length");
+//                }
+//            } catch (NumberFormatException ignore) {
+//                // Ignore bad Content-Length; many servers would reject this
+//            }
+//        }
+
+        // 6) Build your object — pass the METHOD, not the whole start line
+        return new HttpRequest(httpMethod, path, httpVersion, headers, body);
     }
+
 
     public String getPath() {
         if (this.rawString == null || this.rawString.isEmpty()) {
