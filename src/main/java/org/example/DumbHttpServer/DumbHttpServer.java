@@ -7,6 +7,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -78,10 +79,8 @@ public class DumbHttpServer {
             if(inputLine.isEmpty()) break;
         }
 
-        System.out.print("request body: \n"+new RequestHandler(requestString,clientSocket).passBody());
-
         System.out.print("raw request \n"+requestString);
-        // DumbHttpResponse = new RequestHandler(requestString,clientSocket).getHttpResponse();
+        Map<String,String> headers = new RequestHandler(requestString,clientSocket).getHeaders(requestString);
 
         LocalDateTime now = LocalDateTime.now();
 
