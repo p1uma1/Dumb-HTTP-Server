@@ -1,49 +1,72 @@
 package org.example.httpServer.utils;
 
+import org.example.request.RequestHandler;
+
 import java.io.*;
+import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 public class ByteStreamReader implements Closeable {
     private InputStream in;
     private byte[] buffer;
     private int bufferSize;
+    private Socket clientSocket;
 
 
-    public ByteStreamReader(InputStream in,int size) {
+    public ByteStreamReader(InputStream in,int size,Socket clientSocket) {
         this.bufferSize=size;
         this.in = in;
         buffer = new byte[this.bufferSize];
+        this.clientSocket=clientSocket;
     }
-    public int read() throws IOException {
+    public String read() throws IOException {
         StringBuilder sb = new StringBuilder();
-        CharsetDecoder decoder = StandardCharsets.UTF_8
-                .newDecoder()
-                .onMalformedInput(CodingErrorAction.REPORT)
-                .onUnmappableCharacter(CodingErrorAction.REPORT);
-        ByteBuffer byteBuf = ByteBuffer.allocate(bufferSize);
-        CharBuffer charBuf = CharBuffer.allocate(bufferSize);
+        ByteArrayOutputStream headerBuf = new ByteArrayOutputStream();
+
 
         int b;
-        while((b=in.read())!=-1){
-            byteBuf.clear();
-            byteBuf.put(buffer,0,bufferSize);
-            byteBuf.flip();  //from reading to writing
+        int bodyIndex=-1;
 
-            while(true){
-                CoderResult result = decoder.decode(byteBuf,charBuf,false);
-                if(result.isOverflow()){
-                    charBuf.flip();
-                    sb.append(charBuf.array());
-                }
+        while((b=in.read())!=-1){
+
+            headerBuf.write(b);
+            String h = headerBuf.toString(StandardCharsets.UTF_8);
+            if ((bodyIndex=h.indexOf("\r\n\r\n"))>0 ) {
+                bodyIndex+=3;
+                break;
             }
+            if((bodyIndex=h.indexOf("\n\n"))>0){
+                bodyIndex+=1;
+                break;
+            }
+        }
+        if(bodyIndex>0){
+            byte[] headers= headerBuf.toByteArray();
+
+            RequestHandler req = new RequestHandler(new String(headers),this.clientSocket);
+            req.parseRequest();
+
+            int contentLength= Integer.parseInt(req.getHeaders(req.getHeaders()).get("Content-Length"));
+//            System.out.println("Req: \n"+new String(headers));
+//            byte[] body = new byte[contentLength];
+
+            for(int i=0;i<contentLength;i++){
+                b=in.read();
+                if(b==-1){
+                    break;
+                }
+                headerBuf.write(b);
+            }
+            return new String(headerBuf.toByteArray());
 
         }
-        return -1;
+        return "Error";
     }
 
 
