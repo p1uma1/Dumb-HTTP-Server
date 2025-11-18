@@ -1,14 +1,22 @@
-package org.example.DumbHttpServer;
+package org.example.httpServer;
 
+import org.example.contesxt.HttpContext;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
 import org.example.httpServer.utils.ByteStreamReader;
+import org.example.middleware.RequestHandler;
+import org.example.request.HttpRequest;
+import org.example.request.RequestParser;
 
 import java.io.*;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -16,11 +24,17 @@ public class DumbHttpServer {
     private ServerSocket serverSocket;
     private final int port;
     private static final int THREAD_POOL_SIZE = 10;
+    private final HttpContext httpContext;
+
+    public HttpContext getHttpContext(){
+        return this.httpContext;
+    }
 
 
     public DumbHttpServer(int port) throws IOException {
         this.port = port;
         this.serverSocket = null;
+        this.httpContext=new HttpContext();
     }
     public void listen() throws IOException {
         ExecutorService threadPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
@@ -147,24 +161,23 @@ public class DumbHttpServer {
         InputStream input = clientSocket.getInputStream();
         ByteArrayInputStream b;
 
-        
+
         BufferedWriter out = new BufferedWriter(
                 new OutputStreamWriter( clientSocket.getOutputStream())
         );
 
         ByteStreamReader in = new ByteStreamReader(input,1024,clientSocket);
-        String headers = in.read();
-        System.out.println(headers);
+        String request = in.read();
+        HttpRequest request1 = new RequestParser(request,clientSocket).parseRequest();
+        System.out.println("Method: "+request1.getMethod()+" path: "+request1.getPath());
 
-
-
-
-            LocalDateTime now = LocalDateTime.now();
-
-            out.write("HTTP/1.1 200 OK\r\nDate: " + now + "\r\nServer: Custom Server\r\nContent-Type: text/html\r\nContent-Length: " + length + "\r\n\r\n");
-            out.write(body);
-            out.flush();
-        }
+        RequestHandler reqHandler = this.httpContext.match(request1.getMethod(),request1.getPath());
+        reqHandler.Handle();
+        LocalDateTime now = LocalDateTime.now();
+        out.write("HTTP/1.1 200 OK\r\nDate: " + now + "\r\nServer: Custom Server\r\nContent-Type: text/html\r\nContent-Length: " + length + "\r\n\r\n");
+        out.write(body);
+        out.flush();
+    }
 
 
 
