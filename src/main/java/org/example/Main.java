@@ -14,6 +14,14 @@ public class Main {
 
         int port = 8080;
         DumbHttpServer dummyServer = new DumbHttpServer(port);
+        HttpContext app = dummyServer.getHttpContext();
+        RequestHandler bookController = new RequestHandler() {
+            @Override
+            public void Handle() {
+                System.out.println("endpoint function here");
+            }
+        };
+        app.get("/api",bookController);
         dummyServer.listen();
     }
 }
