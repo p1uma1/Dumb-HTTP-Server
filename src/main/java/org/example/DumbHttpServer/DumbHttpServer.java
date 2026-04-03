@@ -5,8 +5,6 @@ import org.example.contesxt.HttpContext;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -163,12 +161,7 @@ public class DumbHttpServer {
             body = "<h1>500 Internal Server Error</h1>";
         }
 
-        byte[] bodyBytes = body.getBytes(StandardCharsets.UTF_8);
-        int length = bodyBytes.length;
-        LocalDateTime now = LocalDateTime.now();
-
-        out.write(statusLine + "\r\nDate: " + now + "\r\nServer: Custom Server\r\nContent-Type: text/html\r\nContent-Length: " + length + "\r\n\r\n");
-        out.write(body);
+        out.write(HttpResponseBuilder.build(statusLine, "text/html; charset=UTF-8", body));
         out.flush();
     }
 
