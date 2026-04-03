@@ -1,22 +1,12 @@
-package org.example.httpServer;
+package org.example.DumbHttpServer;
 
 import org.example.contesxt.HttpContext;
-import com.sun.net.httpserver.HttpHandler;
-import com.sun.net.httpserver.HttpServer;
-import org.example.httpServer.utils.ByteStreamReader;
-import org.example.middleware.RequestHandler;
-import org.example.request.HttpRequest;
-import org.example.request.RequestParser;
 
 import java.io.*;
-import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -159,8 +149,6 @@ public class DumbHttpServer {
         int length = bodyBytes.length;
 
         InputStream input = clientSocket.getInputStream();
-        ByteArrayInputStream b;
-
 
         BufferedWriter out = new BufferedWriter(
                 new OutputStreamWriter( clientSocket.getOutputStream())
@@ -172,7 +160,7 @@ public class DumbHttpServer {
         System.out.println("Method: "+request1.getMethod()+" path: "+request1.getPath());
 
         RequestHandler reqHandler = this.httpContext.match(request1.getMethod(),request1.getPath());
-        reqHandler.Handle();
+        reqHandler.handle(request1);
         LocalDateTime now = LocalDateTime.now();
         out.write("HTTP/1.1 200 OK\r\nDate: " + now + "\r\nServer: Custom Server\r\nContent-Type: text/html\r\nContent-Length: " + length + "\r\n\r\n");
         out.write(body);

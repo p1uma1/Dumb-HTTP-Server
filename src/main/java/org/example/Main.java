@@ -1,6 +1,8 @@
 package org.example;
 
 import org.example.DumbHttpServer.DumbHttpServer;
+import org.example.DumbHttpServer.RequestHandler;
+import org.example.contesxt.HttpContext;
 
 import java.io.IOException;
 
@@ -15,12 +17,7 @@ public class Main {
         int port = 8080;
         DumbHttpServer dummyServer = new DumbHttpServer(port);
         HttpContext app = dummyServer.getHttpContext();
-        RequestHandler bookController = new RequestHandler() {
-            @Override
-            public void Handle() {
-                System.out.println("endpoint function here");
-            }
-        };
+        RequestHandler bookController = request -> System.out.println("endpoint function here");
         app.get("/api",bookController);
         dummyServer.listen();
     }
