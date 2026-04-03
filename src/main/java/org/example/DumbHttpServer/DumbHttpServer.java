@@ -130,20 +130,44 @@ public class DumbHttpServer {
         );
 
         ByteStreamReader in = new ByteStreamReader(input,1024,clientSocket);
-        String request = in.read();
-        HttpRequest request1 = new RequestParser(request,clientSocket).parseRequest();
-        System.out.println("Method: "+request1.getMethod()+" path: "+request1.getPath());
+        String statusLine = "HTTP/1.1 200 OK";
+        String body = "";
 
-        RequestHandler reqHandler = this.httpContext.match(request1.getMethod(),request1.getPath());
-        String body = reqHandler == null ? "" : reqHandler.handle(request1);
-        if (body == null) {
-            body = "";
+        try {
+            String request = in.read();
+            HttpRequest request1 = new RequestParser(request,clientSocket).parseRequest();
+            System.out.println("Method: "+request1.getMethod()+" path: "+request1.getPath());
+
+            RequestHandler reqHandler = this.httpContext.match(request1.getMethod(),request1.getPath());
+            if (reqHandler == null) {
+                if (this.httpContext.hasPath(request1.getPath())) {
+                    statusLine = "HTTP/1.1 405 Method Not Allowed";
+                    body = "<h1>405 Method Not Allowed</h1>";
+                } else {
+                    statusLine = "HTTP/1.1 404 Not Found";
+                    body = "<h1>404 Not Found</h1>";
+                }
+            } else {
+                try {
+                    body = reqHandler.handle(request1);
+                    if (body == null) {
+                        body = "";
+                    }
+                } catch (Exception ex) {
+                    statusLine = "HTTP/1.1 500 Internal Server Error";
+                    body = "<h1>500 Internal Server Error</h1>";
+                }
+            }
+        } catch (Exception ex) {
+            statusLine = "HTTP/1.1 500 Internal Server Error";
+            body = "<h1>500 Internal Server Error</h1>";
         }
+
         byte[] bodyBytes = body.getBytes(StandardCharsets.UTF_8);
         int length = bodyBytes.length;
-
         LocalDateTime now = LocalDateTime.now();
-        out.write("HTTP/1.1 200 OK\r\nDate: " + now + "\r\nServer: Custom Server\r\nContent-Type: text/html\r\nContent-Length: " + length + "\r\n\r\n");
+
+        out.write(statusLine + "\r\nDate: " + now + "\r\nServer: Custom Server\r\nContent-Type: text/html\r\nContent-Length: " + length + "\r\n\r\n");
         out.write(body);
         out.flush();
     }

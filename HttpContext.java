@@ -34,4 +34,13 @@ public class HttpContext {
     public RequestHandler match(String method, String path) {
         return routes.getOrDefault(method, new HashMap<>()).get(path);
     }
+
+    public boolean hasPath(String path) {
+        for (Map<String, RequestHandler> methodRoutes : routes.values()) {
+            if (methodRoutes.containsKey(path)) {
+                return true;
+            }
+        }
+        return false;
+    }
 }
