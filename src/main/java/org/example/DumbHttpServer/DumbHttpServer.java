@@ -123,31 +123,6 @@ public class DumbHttpServer {
 //    }
 
     public void handleClient(Socket clientSocket) throws IOException {
-        String body = """
-                <html>
-                    <head>
-                        <title>Home</title>
-                    </head>
-                    <body>
-                        <h1>Home Page</h1>
-                        <p>Java Tutorials</p>
-                        <ul>
-                            <li>
-                                <a href="/get-started-with-java-series"> Java </a>
-                            </li>
-                            <li>
-                                <a href="/spring-boot"> Spring </a>
-                            </li>
-                            <li>
-                                <a href="/learn-jpa-hibernate"> Hibernate </a>
-                            </li>
-                        </ul>
-                     </body>
-                 </html>
-            """;
-        byte[] bodyBytes = body.getBytes(StandardCharsets.UTF_8);
-        int length = bodyBytes.length;
-
         InputStream input = clientSocket.getInputStream();
 
         BufferedWriter out = new BufferedWriter(
@@ -160,7 +135,13 @@ public class DumbHttpServer {
         System.out.println("Method: "+request1.getMethod()+" path: "+request1.getPath());
 
         RequestHandler reqHandler = this.httpContext.match(request1.getMethod(),request1.getPath());
-        reqHandler.handle(request1);
+        String body = reqHandler == null ? "" : reqHandler.handle(request1);
+        if (body == null) {
+            body = "";
+        }
+        byte[] bodyBytes = body.getBytes(StandardCharsets.UTF_8);
+        int length = bodyBytes.length;
+
         LocalDateTime now = LocalDateTime.now();
         out.write("HTTP/1.1 200 OK\r\nDate: " + now + "\r\nServer: Custom Server\r\nContent-Type: text/html\r\nContent-Length: " + length + "\r\n\r\n");
         out.write(body);

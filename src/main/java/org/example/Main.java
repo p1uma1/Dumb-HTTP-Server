@@ -17,7 +17,7 @@ public class Main {
         int port = 8080;
         DumbHttpServer dummyServer = new DumbHttpServer(port);
         HttpContext app = dummyServer.getHttpContext();
-        RequestHandler bookController = request -> System.out.println("endpoint function here");
+        RequestHandler bookController = request -> "<h1>endpoint function here</h1>";
         app.get("/api",bookController);
         dummyServer.listen();
     }

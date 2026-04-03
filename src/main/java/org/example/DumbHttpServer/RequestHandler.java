@@ -2,5 +2,5 @@ package org.example.DumbHttpServer;
 
 @FunctionalInterface
 public interface RequestHandler {
-    void handle(HttpRequest request);
+    String handle(HttpRequest request);
 }
