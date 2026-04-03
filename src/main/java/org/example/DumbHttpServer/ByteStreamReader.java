@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 
 public class ByteStreamReader implements Closeable {
     private final InputStream in;
@@ -17,41 +18,72 @@ public class ByteStreamReader implements Closeable {
     }
 
     public String read() throws IOException {
-        ByteArrayOutputStream headerBuf = new ByteArrayOutputStream();
-        int b;
-        int bodyIndex = -1;
+        ByteArrayOutputStream requestBuffer = new ByteArrayOutputStream();
+        byte[] chunk = new byte[1024];
+        int bytesRead;
+        int headerEnd = -1;
 
-        while ((b = in.read()) != -1) {
-            headerBuf.write(b);
-            String h = headerBuf.toString(StandardCharsets.UTF_8);
-            if ((bodyIndex = h.indexOf("\r\n\r\n")) > 0) {
-                bodyIndex += 3;
-                break;
-            }
-            if ((bodyIndex = h.indexOf("\n\n")) > 0) {
-                bodyIndex += 1;
+        while ((bytesRead = in.read(chunk)) != -1) {
+            requestBuffer.write(chunk, 0, bytesRead);
+            byte[] current = requestBuffer.toByteArray();
+            headerEnd = findHeaderEnd(current);
+            if (headerEnd != -1) {
                 break;
             }
         }
 
-        if (bodyIndex > 0) {
-            byte[] headers = headerBuf.toByteArray();
-            RequestParser req = new RequestParser(new String(headers, StandardCharsets.UTF_8), this.clientSocket);
-            req.parseRequest();
-
-            String contentLengthRaw = req.getHeaders(req.getHeaders()).get("Content-Length");
-            int contentLength = (contentLengthRaw == null) ? 0 : Integer.parseInt(contentLengthRaw);
-
-            for (int i = 0; i < contentLength; i++) {
-                b = in.read();
-                if (b == -1) {
-                    break;
-                }
-                headerBuf.write(b);
-            }
-            return new String(headerBuf.toByteArray(), StandardCharsets.UTF_8);
+        if (headerEnd == -1) {
+            return "Error";
         }
-        return "Error";
+
+        byte[] initial = requestBuffer.toByteArray();
+        String headersText = new String(initial, 0, headerEnd, StandardCharsets.UTF_8);
+        int contentLength = extractContentLength(headersText);
+
+        int bodyAlreadyRead = initial.length - headerEnd;
+        int remainingBodyBytes = Math.max(0, contentLength - bodyAlreadyRead);
+
+        while (remainingBodyBytes > 0 && (bytesRead = in.read(chunk, 0, Math.min(chunk.length, remainingBodyBytes))) != -1) {
+            requestBuffer.write(chunk, 0, bytesRead);
+            remainingBodyBytes -= bytesRead;
+        }
+
+        return new String(requestBuffer.toByteArray(), StandardCharsets.UTF_8);
+    }
+
+    private int findHeaderEnd(byte[] data) {
+        for (int i = 0; i < data.length - 3; i++) {
+            if (data[i] == '\r' && data[i + 1] == '\n' && data[i + 2] == '\r' && data[i + 3] == '\n') {
+                return i + 4;
+            }
+        }
+        for (int i = 0; i < data.length - 1; i++) {
+            if (data[i] == '\n' && data[i + 1] == '\n') {
+                return i + 2;
+            }
+        }
+        return -1;
+    }
+
+    private int extractContentLength(String headersText) {
+        String[] lines = headersText.split("\\r?\\n");
+        for (String line : lines) {
+            int idx = line.indexOf(':');
+            if (idx <= 0) {
+                continue;
+            }
+            String key = line.substring(0, idx).trim().toLowerCase(Locale.ROOT);
+            if (!"content-length".equals(key)) {
+                continue;
+            }
+            String value = line.substring(idx + 1).trim();
+            try {
+                return Integer.parseInt(value);
+            } catch (NumberFormatException ignored) {
+                return 0;
+            }
+        }
+        return 0;
     }
 
     @Override
