@@ -156,6 +156,9 @@ public class DumbHttpServer {
                     body = "<h1>500 Internal Server Error</h1>";
                 }
             }
+        } catch (BadRequestException ex) {
+            statusLine = "HTTP/1.1 400 Bad Request";
+            body = "<h1>400 Bad Request</h1>";
         } catch (Exception ex) {
             statusLine = "HTTP/1.1 500 Internal Server Error";
             body = "<h1>500 Internal Server Error</h1>";
