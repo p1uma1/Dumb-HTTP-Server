@@ -5,6 +5,7 @@ import org.example.contesxt.HttpContext;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -13,9 +14,17 @@ public class DumbHttpServer {
     private final int port;
     private static final int THREAD_POOL_SIZE = 10;
     private final HttpContext httpContext;
+    private ExecutorService threadPool;
 
     public HttpContext getHttpContext(){
         return this.httpContext;
+    }
+
+    public int getListeningPort() {
+        if (this.serverSocket != null && this.serverSocket.isBound()) {
+            return this.serverSocket.getLocalPort();
+        }
+        return this.port;
     }
 
 
@@ -23,23 +32,45 @@ public class DumbHttpServer {
         this.port = port;
         this.serverSocket = null;
         this.httpContext=new HttpContext();
+        this.threadPool = null;
     }
+
     public void listen() throws IOException {
-        ExecutorService threadPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+        this.threadPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
         this.serverSocket=new ServerSocket(port);
         System.out.println("Server started on port "+port);
-        while (true) {
-            Socket clientSocket = this.serverSocket.accept();
-            System.out.println("new client connect "+clientSocket.getInetAddress()+ " "+clientSocket.getPort());
-            threadPool.execute(()-> {
-                try {
-                    handleClient(clientSocket);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+        while (!this.serverSocket.isClosed()) {
+            try {
+                Socket clientSocket = this.serverSocket.accept();
+                System.out.println("new client connect "+clientSocket.getInetAddress()+ " "+clientSocket.getPort());
+                this.threadPool.execute(() -> {
+                    try {
+                        handleClient(clientSocket);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+            } catch (SocketException ex) {
+                if (this.serverSocket.isClosed()) {
+                    break;
                 }
-            });
+                throw ex;
+            }
         }
 
+    }
+
+    public void stop() {
+        try {
+            if (this.serverSocket != null && !this.serverSocket.isClosed()) {
+                this.serverSocket.close();
+            }
+        } catch (IOException ignored) {
+        }
+
+        if (this.threadPool != null && !this.threadPool.isShutdown()) {
+            this.threadPool.shutdownNow();
+        }
     }
 
 //    public void handleClient(Socket clientSocket) throws IOException {
@@ -156,6 +187,9 @@ public class DumbHttpServer {
                     body = "<h1>500 Internal Server Error</h1>";
                 }
             }
+        } catch (BadRequestException ex) {
+            statusLine = "HTTP/1.1 400 Bad Request";
+            body = "<h1>400 Bad Request</h1>";
         } catch (Exception ex) {
             statusLine = "HTTP/1.1 500 Internal Server Error";
             body = "<h1>500 Internal Server Error</h1>";
@@ -163,6 +197,7 @@ public class DumbHttpServer {
 
         out.write(HttpResponseBuilder.build(statusLine, "text/html; charset=UTF-8", body));
         out.flush();
+        clientSocket.close();
     }
 
 
